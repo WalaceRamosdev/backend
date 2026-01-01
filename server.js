@@ -13,19 +13,11 @@ app.use(express.json()); // Permite receber JSON no corpo da requisição
 // Configuração do Nodemailer
 // O serviço 'gmail' é um atalho prático. Para outros, configure host e port.
 const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 587,
-    secure: false, // false for 587
+    service: 'gmail',
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
     },
-    tls: {
-        rejectUnauthorized: false // Ajuda em alguns casos de rede
-    },
-    connectionTimeout: 20000, // 20 segundos (Aumentado)
-    greetingTimeout: 20000,
-    socketTimeout: 20000,
     debug: true, // Log detalhado
     logger: true // Log detalhado
 });
