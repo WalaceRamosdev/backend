@@ -12,10 +12,17 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 app.use(cors());
 app.use(express.json());
 
-if (!process.env.MP_ACCESS_TOKEN) console.warn('AVISO: MP_ACCESS_TOKEN não encontrada');
+// Log para verificar se as chaves estão carregando (não mostra a chave toda por segurança)
+console.log('Iniciando servidor...');
+if (process.env.MP_ACCESS_TOKEN) console.log('MP_ACCESS_TOKEN: Carregada');
+else console.warn('AVISO: MP_ACCESS_TOKEN não encontrada');
+
+if (process.env.RESEND_API_KEY) console.log('RESEND_API_KEY: Carregada');
+else console.warn('AVISO: RESEND_API_KEY não encontrada');
 
 const client = new MercadoPagoConfig({ accessToken: process.env.MP_ACCESS_TOKEN });
 
+// Rota de Pagamento (Mercado Pago)
 app.post('/create-checkout-session', async (req, res) => {
     try {
         const { planName, price } = req.body;
@@ -26,11 +33,9 @@ app.post('/create-checkout-session', async (req, res) => {
 
         const numericPrice = parseFloat(price.replace(/[^0-9,.]/g, '').replace(',', '.'));
         
-        // --- CORREÇÃO AQUI ---
-        // Tenta pegar a origem, se não conseguir, usa localhost como fallback
+        // Detecta Origem para Redirecionamento
         const origin = req.headers.origin || req.headers.referer || 'http://127.0.0.1:5500';
-        console.log('Origin detectada:', origin); // Log para debug
-        // ---------------------
+        console.log('Origin detectada:', origin);
 
         const preference = new Preference(client);
 
@@ -49,7 +54,7 @@ app.post('/create-checkout-session', async (req, res) => {
                     failure: `${origin}/cancel.html`,
                     pending: `${origin}/success.html`
                 },
-                //auto_return: 'approved'
+                // auto_return: 'approved' // Desativado temporariamente para testes locais
             }
         });
 
@@ -60,10 +65,36 @@ app.post('/create-checkout-session', async (req, res) => {
     }
 });
 
-// (Mantenha sua rota de email /send-email aqui embaixo como estava)
+// Rota de Envio de Email (Resend) - RESTAURADA
 app.post('/send-email', async (req, res) => {
-    // ... seu código de email ...
-    res.status(200).json({ message: 'Email enviado (Simulação)' });
+    const { nome, email, whatsapp, servico, detalhes, plano, orcamento } = req.body;
+
+    try {
+        const data = await resend.emails.send({
+            from: 'Alpha Code <onboarding@resend.dev>', // Ou seu domínio verificado
+            to: ['walaceramos@gmail.com'], // Seu email real
+            subject: `Novo Pedido: ${nome} - ${servico || plano}`,
+            html: `
+                <div style="font-family: Arial, sans-serif; color: #333;">
+                    <h2 style="color: #6E0F18;">Novo Pedido Recebido!</h2>
+                    <p><strong>Nome:</strong> ${nome}</p>
+                    <p><strong>Email:</strong> ${email}</p>
+                    <p><strong>WhatsApp:</strong> ${whatsapp}</p>
+                    <hr>
+                    <p><strong>Serviço/Objetivo:</strong> ${servico}</p>
+                    <p><strong>Plano Selecionado:</strong> ${plano || 'N/A'}</p>
+                    <p><strong>Orçamento/Cores:</strong> ${orcamento}</p>
+                    <p><strong>Detalhes:</strong><br>${detalhes}</p>
+                </div>
+            `
+        });
+
+        console.log('Email enviado:', data);
+        res.status(200).json({ message: 'Email enviado com sucesso!' });
+    } catch (error) {
+        console.error('Erro ao enviar email:', error);
+        res.status(500).json({ error: 'Erro ao enviar email' });
+    }
 });
 
 app.listen(PORT, () => {
