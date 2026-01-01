@@ -91,7 +91,7 @@ app.post('/send-email', async (req, res) => {
     try {
         const data = await resend.emails.send({
             from: 'Alpha Code <onboarding@resend.dev>', // Use seu domínio verificado se tiver
-            to: ['walaceramos@gmail.com'], // ONDE VOCÊ RECEBE OS PEDIDOS
+            to: ['alphacodecontato@gmail.com'], // ONDE VOCÊ RECEBE OS PEDIDOS
             subject: `🔥 Novo Pedido: ${nome} - ${plano || servico}`,
             html: `
                 <div style="font-family: 'Segoe UI', Arial, sans-serif; color: #333; max-width: 600px; border: 1px solid #ddd; padding: 20px; border-radius: 10px;">
