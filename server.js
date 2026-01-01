@@ -1,84 +1,57 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const nodemailer = require('nodemailer');
+
+
+const { Resend } = require('resend');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 // Middleware
-app.use(cors()); // Habilita CORS para todas as origens (ajuste em produção se necessário)
-app.use(express.json()); // Permite receber JSON no corpo da requisição
+app.use(cors());
+app.use(express.json());
 
-// Configuração do Nodemailer
-// O serviço 'gmail' é um atalho prático. Para outros, configure host e port.
-const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 587,
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-    },
-    tls: {
-        rejectUnauthorized: false
-    },
-    debug: true,
-    logger: true
-});
-
-// Teste de Verificação das Variáveis
-console.log('EMAIL_USER:', process.env.EMAIL_USER);
-
+// Verificação de API Key
+if (!process.env.RESEND_API_KEY) {
+    console.error('ERRO: RESEND_API_KEY não encontrada no .env');
+}
 
 // Rota de Envio de E-mail
 app.post('/send-email', async (req, res) => {
     try {
         const { nome, email, mensagem } = req.body;
 
-        // 1. Validação Básica
         if (!nome || !email || !mensagem) {
-            return res.status(400).json({ error: 'Todos os campos (nome, email, mensagem) são obrigatórios.' });
+            return res.status(400).json({ error: 'Todos os campos são obrigatórios.' });
         }
 
-        // 2. Validação de formato de E-mail (Simples)
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(email)) {
-            return res.status(400).json({ error: 'O endereço de e-mail fornecido é inválido.' });
-        }
-
-        // 3. Configuração da Mensagem
-        const mailOptions = {
-            from: `"${nome}" <${process.env.EMAIL_USER}>`, // Remetente (deve ser o autenticado)
-            to: process.env.EMAIL_USER, // Para onde vai o lead (você mesmo)
-            replyTo: email, // Responder para o cliente
-            subject: `Novo Contato do Site: ${nome}`,
-            text: `
-                Você recebeu uma nova mensagem pelo site.
-
-                Nome: ${nome}
-                Email: ${email}
-                
-                Mensagem:
-                ${mensagem}
-            `,
+        const { data, error } = await resend.emails.send({
+            from: 'Alpha Code <onboarding@resend.dev>', // Email padrão do Resend (funciona sem domínio)
+            to: [process.env.EMAIL_USER], // O email que receberá os pedidos (deve ser o mesmo do cadastro Resend)
+            reply_to: email, // Para você responder direto ao cliente
+            subject: `Novo Pedido: ${nome}`,
             html: `
                 <h3>Novo Contato do Site</h3>
                 <p><strong>Nome:</strong> ${nome}</p>
-                <p><strong>Email:</strong> ${email}</p>
+                <p><strong>Email do Cliente:</strong> ${email}</p>
                 <br>
                 <p><strong>Mensagem:</strong></p>
                 <p>${mensagem.replace(/\n/g, '<br>')}</p>
             `
-        };
+        });
 
-        // 4. Envio
-        await transporter.sendMail(mailOptions);
+        if (error) {
+            console.error('Erro Resend:', error);
+            return res.status(400).json({ error: error.message });
+        }
 
-        return res.status(200).json({ message: 'E-mail enviado com sucesso!' });
+        return res.status(200).json({ message: 'E-mail enviado com sucesso via Resend!', id: data.id });
 
-    } catch (error) {
-        console.error('Erro ao enviar e-mail:', error);
-        return res.status(500).json({ error: 'Erro interno ao enviar o e-mail. Tente novamente mais tarde.' });
+    } catch (err) {
+        console.error('Erro interno:', err);
+        return res.status(500).json({ error: 'Erro interno ao processar envio.' });
     }
 });
 
