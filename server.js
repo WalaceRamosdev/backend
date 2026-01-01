@@ -6,23 +6,35 @@ const { MercadoPagoConfig, Preference } = require('mercadopago');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Inicializa Resend (Email)
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 
-// Log para verificar se as chaves estão carregando (não mostra a chave toda por segurança)
-console.log('Iniciando servidor...');
-if (process.env.MP_ACCESS_TOKEN) console.log('MP_ACCESS_TOKEN: Carregada');
-else console.warn('AVISO: MP_ACCESS_TOKEN não encontrada');
+// --- CHECAGEM DE VARIÁVEIS DE AMBIENTE (Debug) ---
+console.log('--- Iniciando Servidor Alpha Code ---');
+if (process.env.MP_ACCESS_TOKEN) {
+    console.log('✅ MP_ACCESS_TOKEN: Encontrada');
+} else {
+    console.warn('❌ AVISO: MP_ACCESS_TOKEN não configurada!');
+}
 
-if (process.env.RESEND_API_KEY) console.log('RESEND_API_KEY: Carregada');
-else console.warn('AVISO: RESEND_API_KEY não encontrada');
+if (process.env.RESEND_API_KEY) {
+    console.log('✅ RESEND_API_KEY: Encontrada');
+} else {
+    console.warn('❌ AVISO: RESEND_API_KEY não configurada!');
+}
+// --------------------------------------------------
 
+// Inicializa Mercado Pago
 const client = new MercadoPagoConfig({ accessToken: process.env.MP_ACCESS_TOKEN });
 
-// Rota de Pagamento (Mercado Pago)
+// ==========================================
+// ROTA 1: CRIAR PAGAMENTO (Mercado Pago)
+// ==========================================
 app.post('/create-checkout-session', async (req, res) => {
     try {
         const { planName, price } = req.body;
@@ -31,11 +43,12 @@ app.post('/create-checkout-session', async (req, res) => {
             return res.status(400).json({ error: 'Dados do plano ausentes.' });
         }
 
+        // Limpa e formata o preço
         const numericPrice = parseFloat(price.replace(/[^0-9,.]/g, '').replace(',', '.'));
         
-        // Detecta Origem para Redirecionamento
+        // Detecta a origem (localhost ou produção) para o link de retorno
         const origin = req.headers.origin || req.headers.referer || 'http://127.0.0.1:5500';
-        console.log('Origin detectada:', origin);
+        console.log(`💳 Iniciando Checkout. Origem: ${origin}`);
 
         const preference = new Preference(client);
 
@@ -54,49 +67,71 @@ app.post('/create-checkout-session', async (req, res) => {
                     failure: `${origin}/cancel.html`,
                     pending: `${origin}/success.html`
                 },
-                // auto_return: 'approved' // Desativado temporariamente para testes locais
+                // IMPORTANTE: 'auto_return' comentado para evitar erro no localhost.
+                // Quando o site for para o domínio real (https), você pode descomentar.
+                // auto_return: 'approved' 
             }
         });
 
         res.json({ url: response.init_point });
     } catch (error) {
-        console.error('Erro Mercado Pago:', error);
+        console.error('❌ Erro Mercado Pago:', error);
         res.status(500).json({ error: 'Erro ao criar preferência de pagamento' });
     }
 });
 
-// Rota de Envio de Email (Resend) - RESTAURADA
+// ==========================================
+// ROTA 2: ENVIAR EMAIL DE LEAD (Resend)
+// ==========================================
 app.post('/send-email', async (req, res) => {
     const { nome, email, whatsapp, servico, detalhes, plano, orcamento } = req.body;
 
+    console.log(`📧 Tentando enviar email para lead: ${nome}`);
+
     try {
         const data = await resend.emails.send({
-            from: 'Alpha Code <onboarding@resend.dev>', // Ou seu domínio verificado
-            to: ['walaceramos@gmail.com'], // Seu email real
-            subject: `Novo Pedido: ${nome} - ${servico || plano}`,
+            from: 'Alpha Code <onboarding@resend.dev>', // Use seu domínio verificado se tiver
+            to: ['walaceramos@gmail.com'], // ONDE VOCÊ RECEBE OS PEDIDOS
+            subject: `🔥 Novo Pedido: ${nome} - ${plano || servico}`,
             html: `
-                <div style="font-family: Arial, sans-serif; color: #333;">
-                    <h2 style="color: #6E0F18;">Novo Pedido Recebido!</h2>
+                <div style="font-family: 'Segoe UI', Arial, sans-serif; color: #333; max-width: 600px; border: 1px solid #ddd; padding: 20px; border-radius: 10px;">
+                    <h2 style="color: #6E0F18; border-bottom: 2px solid #6E0F18; padding-bottom: 10px;">Novo Pedido Iniciado!</h2>
+                    
+                    <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+                        <p style="margin: 5px 0;"><strong>Status Atual:</strong> <span style="background-color: #ffeebc; padding: 2px 8px; border-radius: 4px; border: 1px solid #ffcc00;">🟡 Aguardando Pagamento</span></p>
+                        <p style="margin: 5px 0; font-size: 0.9em; color: #666;">(O cliente preencheu os dados e foi para a tela de pagamento)</p>
+                    </div>
+
+                    <h3 style="color: #444;">👤 Dados do Cliente</h3>
                     <p><strong>Nome:</strong> ${nome}</p>
+                    <p><strong>WhatsApp:</strong> <a href="https://wa.me/55${whatsapp.replace(/\D/g,'')}" style="color: #25D366; font-weight: bold; text-decoration: none;">${whatsapp} 🔗</a></p>
                     <p><strong>Email:</strong> ${email}</p>
-                    <p><strong>WhatsApp:</strong> ${whatsapp}</p>
-                    <hr>
-                    <p><strong>Serviço/Objetivo:</strong> ${servico}</p>
-                    <p><strong>Plano Selecionado:</strong> ${plano || 'N/A'}</p>
-                    <p><strong>Orçamento/Cores:</strong> ${orcamento}</p>
-                    <p><strong>Detalhes:</strong><br>${detalhes}</p>
+
+                    <h3 style="color: #444;">🚀 Detalhes do Projeto</h3>
+                    <p><strong>Objetivo/Serviço:</strong> ${servico}</p>
+                    <p><strong>Plano Escolhido:</strong> ${plano || 'Personalizado'}</p>
+                    <p><strong>Preferência de Cores:</strong> ${orcamento}</p>
+                    
+                    <div style="background-color: #f0f4f8; padding: 15px; border-left: 4px solid #009EE3; margin-top: 10px;">
+                        <strong>Descrição do Cliente:</strong><br>
+                        ${detalhes}
+                    </div>
+                    
+                    <hr style="margin-top: 30px; border: 0; border-top: 1px solid #eee;">
+                    <p style="font-size: 12px; color: #999; text-align: center;">Alpha Code - Sistema de Pedidos Automático</p>
                 </div>
             `
         });
 
-        console.log('Email enviado:', data);
+        console.log('✅ Email enviado com sucesso:', data);
         res.status(200).json({ message: 'Email enviado com sucesso!' });
     } catch (error) {
-        console.error('Erro ao enviar email:', error);
+        console.error('❌ Erro ao enviar email:', error);
         res.status(500).json({ error: 'Erro ao enviar email' });
     }
 });
 
+// Iniciando o servidor
 app.listen(PORT, () => {
-    console.log(`Servidor rodando na porta ${PORT}`);
+    console.log(`🚀 Servidor rodando na porta ${PORT}`);
 });
