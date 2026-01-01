@@ -49,7 +49,7 @@ app.post('/create-checkout-session', async (req, res) => {
                     failure: `${origin}/cancel.html`,
                     pending: `${origin}/success.html`
                 },
-                auto_return: 'approved'
+                //auto_return: 'approved'
             }
         });
 
