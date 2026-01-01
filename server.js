@@ -13,18 +13,24 @@ app.use(express.json()); // Permite receber JSON no corpo da requisição
 // Configuração do Nodemailer
 // O serviço 'gmail' é um atalho prático. Para outros, configure host e port.
 const transporter = nodemailer.createTransport({
-    service: 'gmail',
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false,
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
     },
-    debug: true, // Log detalhado
-    logger: true // Log detalhado
+    tls: {
+        ciphers: 'SSLv3'
+    },
+    family: 4, // Força o uso de IPv4 (evita problemas de timeout com IPv6 no Render)
+    debug: true,
+    logger: true
 });
 
-// Teste de Verificação das Variáveis (Sem mostrar a senha)
-console.log('EMAIL_USER Configurado:', process.env.EMAIL_USER ? 'SIM (' + process.env.EMAIL_USER + ')' : 'NÃO');
-console.log('EMAIL_PASS Configurado:', process.env.EMAIL_PASS ? 'SIM (****)' : 'NÃO');
+// Teste de Verificação das Variáveis
+console.log('EMAIL_USER:', process.env.EMAIL_USER);
+console.log('EMAIL_PASS (Length):', process.env.EMAIL_PASS ? process.env.EMAIL_PASS.length : '0');
 
 
 // Rota de Envio de E-mail
