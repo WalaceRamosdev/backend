@@ -12,14 +12,10 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 app.use(cors());
 app.use(express.json());
 
-// Verificação de API Key
-if (!process.env.RESEND_API_KEY) console.warn('AVISO: RESEND_API_KEY não encontrada');
 if (!process.env.MP_ACCESS_TOKEN) console.warn('AVISO: MP_ACCESS_TOKEN não encontrada');
 
-// Configuração Mercado Pago
 const client = new MercadoPagoConfig({ accessToken: process.env.MP_ACCESS_TOKEN });
 
-// Rota de Pagamento (Mercado Pago)
 app.post('/create-checkout-session', async (req, res) => {
     try {
         const { planName, price } = req.body;
@@ -29,6 +25,13 @@ app.post('/create-checkout-session', async (req, res) => {
         }
 
         const numericPrice = parseFloat(price.replace(/[^0-9,.]/g, '').replace(',', '.'));
+        
+        // --- CORREÇÃO AQUI ---
+        // Tenta pegar a origem, se não conseguir, usa localhost como fallback
+        const origin = req.headers.origin || req.headers.referer || 'http://127.0.0.1:5500';
+        console.log('Origin detectada:', origin); // Log para debug
+        // ---------------------
+
         const preference = new Preference(client);
 
         const response = await preference.create({
@@ -42,9 +45,9 @@ app.post('/create-checkout-session', async (req, res) => {
                     }
                 ],
                 back_urls: {
-                    success: `${req.headers.origin}/success.html`,
-                    failure: `${req.headers.origin}/cancel.html`,
-                    pending: `${req.headers.origin}/success.html`
+                    success: `${origin}/success.html`,
+                    failure: `${origin}/cancel.html`,
+                    pending: `${origin}/success.html`
                 },
                 auto_return: 'approved'
             }
@@ -57,18 +60,10 @@ app.post('/create-checkout-session', async (req, res) => {
     }
 });
 
-// Rota de Envio de E-mail
+// (Mantenha sua rota de email /send-email aqui embaixo como estava)
 app.post('/send-email', async (req, res) => {
-    try {
-        const { nome, email, mensagem } = req.body;
-        // ... (Verifique se precisa manter a lógica original de email aqui)
-        // Se precisar, copie do arquivo server.js que está na pasta backend deste projeto
-        
-        // Simulação de sucesso par manter validação simples
-        res.status(200).json({ message: 'Email enviado (Simulação)' }); 
-    } catch (err) {
-        res.status(500).json({ error: 'Erro interno' });
-    }
+    // ... seu código de email ...
+    res.status(200).json({ message: 'Email enviado (Simulação)' });
 });
 
 app.listen(PORT, () => {
