@@ -8,7 +8,10 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Inicializa Resend (Email)
-const resend = new Resend(process.env.RESEND_API_KEY);
+let resend;
+if (process.env.RESEND_API_KEY) {
+    resend = new Resend(process.env.RESEND_API_KEY);
+}
 
 // Middleware
 app.use(cors());
@@ -25,12 +28,12 @@ if (process.env.MP_ACCESS_TOKEN) {
 if (process.env.RESEND_API_KEY) {
     console.log('✅ RESEND_API_KEY: Encontrada');
 } else {
-    console.warn('❌ AVISO: RESEND_API_KEY não configurada!');
+    console.warn('❌ AVISO: RESEND_API_KEY não configurada! O envio de emails falhará.');
 }
 // --------------------------------------------------
 
 // Inicializa Mercado Pago
-const client = new MercadoPagoConfig({ accessToken: process.env.MP_ACCESS_TOKEN });
+const client = new MercadoPagoConfig({ accessToken: process.env.MP_ACCESS_TOKEN || 'TEST-0000000000000000-000000-00000000000000000000000000000000-000000000' }); // Fallback to avoid crash
 
 // ==========================================
 // ROTA 1: CRIAR PAGAMENTO (Mercado Pago)
@@ -84,9 +87,14 @@ app.post('/create-checkout-session', async (req, res) => {
 // ROTA 2: ENVIAR EMAIL DE LEAD (Resend)
 // ==========================================
 app.post('/send-email', async (req, res) => {
-    const { nome, email, whatsapp, servico, detalhes, plano, orcamento, isMaintenance, isPaid } = req.body;
+    const { nome, email, whatsapp, servico, detalhes, plano, orcamento, isMaintenance, isPaid, profissao } = req.body;
 
     // console.log('📦 Payload Recebido:', JSON.stringify(req.body, null, 2));
+
+    if (!resend) {
+        console.error('❌ ERRO: Tentativa de envio de email sem RESEND_API_KEY configurada.');
+        return res.status(500).json({ error: 'Servidor de email não configurado (API Key ausente).' });
+    }
 
     try {
         // Selecionar Template de Email
@@ -150,6 +158,7 @@ app.post('/send-email', async (req, res) => {
                     <p><strong>Nome:</strong> ${nome}</p>
                     <p><strong>WhatsApp:</strong> <a href="https://wa.me/55${whatsapp.replace(/\D/g, '')}" style="color: #25D366; font-weight: bold; text-decoration: none;">${whatsapp} 🔗</a></p>
                     <p><strong>Email:</strong> ${email}</p>
+                    <p><strong>Profissão:</strong> ${profissao || 'Não informada'}</p>
 
                     <h3 style="color: #444;">🚀 Detalhes do Projeto</h3>
                     <p><strong>Objetivo/Serviço:</strong> ${servico}</p>
