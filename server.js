@@ -45,7 +45,7 @@ app.post('/create-checkout-session', async (req, res) => {
 
         // Limpa e formata o preço
         const numericPrice = parseFloat(price.replace(/[^0-9,.]/g, '').replace(',', '.'));
-        
+
         // Detecta a origem (localhost ou produção) para o link de retorno
         const origin = req.headers.origin || req.headers.referer || 'http://127.0.0.1:5500';
         console.log(`💳 Iniciando Checkout. Origem: ${origin}`);
@@ -84,16 +84,55 @@ app.post('/create-checkout-session', async (req, res) => {
 // ROTA 2: ENVIAR EMAIL DE LEAD (Resend)
 // ==========================================
 app.post('/send-email', async (req, res) => {
-    const { nome, email, whatsapp, servico, detalhes, plano, orcamento } = req.body;
+    const { nome, email, whatsapp, servico, detalhes, plano, orcamento, isMaintenance } = req.body;
 
-    console.log(`📧 Tentando enviar email para lead: ${nome}`);
+    console.log('📦 Payload Recebido:', JSON.stringify(req.body, null, 2));
 
     try {
-        const data = await resend.emails.send({
-            from: 'Alpha Code <onboarding@resend.dev>', // Use seu domínio verificado se tiver
-            to: ['alphacodecontato@gmail.com'], // ONDE VOCÊ RECEBE OS PEDIDOS
-            subject: `🔥 Novo Pedido: ${nome} - ${plano || servico}`,
-            html: `
+        // Selecionar Template de Email
+        let emailHtml = '';
+
+        // Normalização para verificação
+        const isMaintenanceBool = isMaintenance === true || isMaintenance === 'true';
+        const planoStr = String(plano || '').toLowerCase();
+        const isMaintenancePlan = planoStr.includes('manuten') || planoStr.includes('manutençao') || planoStr.includes('manutenção');
+
+        console.log(`🔍 Verificação: isMaintenance=${isMaintenanceBool}, plano=${plano}, isMaintenancePlan=${isMaintenancePlan}`);
+
+        // Verifica se é manutenção (usando flag explícita ou fallback de string)
+        if (isMaintenanceBool || isMaintenancePlan) {
+            console.log('✅ Selecionado Template de MANUTENÇÃO');
+            // --- TEMPLATE EXCLUSIVO DE MANUTENÇÃO ---
+            emailHtml = `
+                <div style="font-family: 'Segoe UI', Arial, sans-serif; color: #333; max-width: 600px; border: 1px solid #ddd; padding: 20px; border-radius: 10px;">
+                    <h2 style="color: #6E0F18; border-bottom: 2px solid #6E0F18; padding-bottom: 10px;">Solicitação de Manutenção</h2>
+                    
+                    <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+                        <p style="margin: 5px 0;"><strong>Status Atual:</strong> <span style="background-color: #ffeebc; padding: 2px 8px; border-radius: 4px; border: 1px solid #ffcc00;">🟡 Aguardando Pagamento</span></p>
+                    </div>
+
+                    <h3 style="color: #444;">👤 Dados do Cliente</h3>
+                    <p><strong>Nome:</strong> ${nome}</p>
+                    <p><strong>WhatsApp:</strong> <a href="https://wa.me/55${whatsapp.replace(/\D/g, '')}" style="color: #25D366; font-weight: bold; text-decoration: none;">${whatsapp} 🔗</a></p>
+                    <p><strong>Email:</strong> ${email}</p>
+
+                    <h3 style="color: #444;">🚀 Detalhes do Projeto</h3>
+                    
+                    <p><strong>Serviço:</strong> Manutenção</p>
+                    <p><strong>Link do Site:</strong> <a href="${orcamento}" target="_blank">${orcamento}</a></p>
+                    
+                    <div style="background-color: #f0f4f8; padding: 15px; border-left: 4px solid #009EE3; margin-top: 10px;">
+                        <strong>Descrição do Cliente:</strong><br>
+                        ${detalhes}
+                    </div>
+                    
+                    <hr style="margin-top: 30px; border: 0; border-top: 1px solid #eee;">
+                    <p style="font-size: 12px; color: #999; text-align: center;">Alpha Code - Sistema de Manutenção</p>
+                </div>
+            `;
+        } else {
+            // --- TEMPLATE PADRÃO (OUTROS PLANOS) ---
+            emailHtml = `
                 <div style="font-family: 'Segoe UI', Arial, sans-serif; color: #333; max-width: 600px; border: 1px solid #ddd; padding: 20px; border-radius: 10px;">
                     <h2 style="color: #6E0F18; border-bottom: 2px solid #6E0F18; padding-bottom: 10px;">Novo Pedido Iniciado!</h2>
                     
@@ -104,7 +143,7 @@ app.post('/send-email', async (req, res) => {
 
                     <h3 style="color: #444;">👤 Dados do Cliente</h3>
                     <p><strong>Nome:</strong> ${nome}</p>
-                    <p><strong>WhatsApp:</strong> <a href="https://wa.me/55${whatsapp.replace(/\D/g,'')}" style="color: #25D366; font-weight: bold; text-decoration: none;">${whatsapp} 🔗</a></p>
+                    <p><strong>WhatsApp:</strong> <a href="https://wa.me/55${whatsapp.replace(/\D/g, '')}" style="color: #25D366; font-weight: bold; text-decoration: none;">${whatsapp} 🔗</a></p>
                     <p><strong>Email:</strong> ${email}</p>
 
                     <h3 style="color: #444;">🚀 Detalhes do Projeto</h3>
@@ -120,7 +159,14 @@ app.post('/send-email', async (req, res) => {
                     <hr style="margin-top: 30px; border: 0; border-top: 1px solid #eee;">
                     <p style="font-size: 12px; color: #999; text-align: center;">Alpha Code - Sistema de Pedidos Automático</p>
                 </div>
-            `
+            `;
+        }
+
+        const data = await resend.emails.send({
+            from: 'Alpha Code <onboarding@resend.dev>', // Use seu domínio verificado se tiver
+            to: ['alphacodecontato@gmail.com'], // ONDE VOCÊ RECEBE OS PEDIDOS
+            subject: `🔥 Novo Pedido: ${nome} - ${plano || servico}`,
+            html: emailHtml
         });
 
         console.log('✅ Email enviado com sucesso:', data);
