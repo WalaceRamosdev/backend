@@ -84,31 +84,36 @@ app.post('/create-checkout-session', async (req, res) => {
 // ROTA 2: ENVIAR EMAIL DE LEAD (Resend)
 // ==========================================
 app.post('/send-email', async (req, res) => {
-    const { nome, email, whatsapp, servico, detalhes, plano, orcamento, isMaintenance } = req.body;
+    const { nome, email, whatsapp, servico, detalhes, plano, orcamento, isMaintenance, isPaid } = req.body;
 
-    console.log('📦 Payload Recebido:', JSON.stringify(req.body, null, 2));
+    // console.log('📦 Payload Recebido:', JSON.stringify(req.body, null, 2));
 
     try {
         // Selecionar Template de Email
         let emailHtml = '';
 
+        // Helper para Status de Pagamento
+        const statusBadge = isPaid
+            ? '<span style="background-color: #d4edda; color: #155724; padding: 2px 8px; border-radius: 4px; border: 1px solid #c3e6cb;">🟢 Pagamento Confirmado (Simulação)</span>'
+            : '<span style="background-color: #ffeebc; padding: 2px 8px; border-radius: 4px; border: 1px solid #ffcc00;">🟡 Aguardando Pagamento</span>';
+
         // Normalização para verificação
         const isMaintenanceBool = isMaintenance === true || isMaintenance === 'true';
         const planoStr = String(plano || '').toLowerCase();
-        const isMaintenancePlan = planoStr.includes('manuten') || planoStr.includes('manutençao') || planoStr.includes('manutenção');
+        const isMaintenancePlan = planoStr.includes('manuten');
 
-        console.log(`🔍 Verificação: isMaintenance=${isMaintenanceBool}, plano=${plano}, isMaintenancePlan=${isMaintenancePlan}`);
+        // console.log(`🔍 Verificação: isMaintenance=${isMaintenanceBool}, plano=${plano}, isMaintenancePlan=${isMaintenancePlan}`);
 
         // Verifica se é manutenção (usando flag explícita ou fallback de string)
         if (isMaintenanceBool || isMaintenancePlan) {
-            console.log('✅ Selecionado Template de MANUTENÇÃO');
+            // console.log('✅ Selecionado Template de MANUTENÇÃO');
             // --- TEMPLATE EXCLUSIVO DE MANUTENÇÃO ---
             emailHtml = `
                 <div style="font-family: 'Segoe UI', Arial, sans-serif; color: #333; max-width: 600px; border: 1px solid #ddd; padding: 20px; border-radius: 10px;">
                     <h2 style="color: #6E0F18; border-bottom: 2px solid #6E0F18; padding-bottom: 10px;">Solicitação de Manutenção</h2>
                     
                     <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
-                        <p style="margin: 5px 0;"><strong>Status Atual:</strong> <span style="background-color: #ffeebc; padding: 2px 8px; border-radius: 4px; border: 1px solid #ffcc00;">🟡 Aguardando Pagamento</span></p>
+                        <p style="margin: 5px 0;"><strong>Status Atual:</strong> ${statusBadge}</p>
                     </div>
 
                     <h3 style="color: #444;">👤 Dados do Cliente</h3>
@@ -137,7 +142,7 @@ app.post('/send-email', async (req, res) => {
                     <h2 style="color: #6E0F18; border-bottom: 2px solid #6E0F18; padding-bottom: 10px;">Novo Pedido Iniciado!</h2>
                     
                     <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
-                        <p style="margin: 5px 0;"><strong>Status Atual:</strong> <span style="background-color: #ffeebc; padding: 2px 8px; border-radius: 4px; border: 1px solid #ffcc00;">🟡 Aguardando Pagamento</span></p>
+                        <p style="margin: 5px 0;"><strong>Status Atual:</strong> ${statusBadge}</p>
                         <p style="margin: 5px 0; font-size: 0.9em; color: #666;">(O cliente preencheu os dados e foi para a tela de pagamento)</p>
                     </div>
 
