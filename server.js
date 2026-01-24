@@ -87,9 +87,25 @@ app.post('/create-checkout-session', async (req, res) => {
 // ROTA 2: ENVIAR EMAIL DE LEAD (Resend)
 // ==========================================
 app.post('/send-email', async (req, res) => {
-    const { nome, email, whatsapp, servico, detalhes, plano, orcamento, isMaintenance, isPaid, profissao } = req.body;
+    const {
+        nome,
+        email,
+        whatsapp,
+        objetivo,
+        servico,
+        detalhes,
+        plano,
+        cores,
+        orcamento,
+        referencias,
+        isMaintenance,
+        isPaid,
+        profissao
+    } = req.body;
 
-    // console.log('📦 Payload Recebido:', JSON.stringify(req.body, null, 2));
+    // Fallbacks para compatibilidade caso chegue com nomes antigos
+    const finalObjetivo = objetivo || servico;
+    const finalCores = cores || orcamento;
 
     if (!resend) {
         console.error('❌ ERRO: Tentativa de envio de email sem RESEND_API_KEY configurada.');
@@ -110,12 +126,8 @@ app.post('/send-email', async (req, res) => {
         const planoStr = String(plano || '').toLowerCase();
         const isMaintenancePlan = planoStr.includes('manuten');
 
-        // console.log(`🔍 Verificação: isMaintenance=${isMaintenanceBool}, plano=${plano}, isMaintenancePlan=${isMaintenancePlan}`);
-
         // Verifica se é manutenção (usando flag explícita ou fallback de string)
         if (isMaintenanceBool || isMaintenancePlan) {
-            // console.log('✅ Selecionado Template de MANUTENÇÃO');
-            // --- TEMPLATE EXCLUSIVO DE MANUTENÇÃO ---
             emailHtml = `
                 <div style="font-family: 'Segoe UI', Arial, sans-serif; color: #333; max-width: 600px; border: 1px solid #ddd; padding: 20px; border-radius: 10px;">
                     <h2 style="color: #6E0F18; border-bottom: 2px solid #6E0F18; padding-bottom: 10px;">Solicitação de Manutenção</h2>
@@ -132,7 +144,7 @@ app.post('/send-email', async (req, res) => {
                     <h3 style="color: #444;">🚀 Detalhes do Projeto</h3>
                     
                     <p><strong>Serviço:</strong> Manutenção</p>
-                    <p><strong>Link do Site:</strong> <a href="${orcamento}" target="_blank">${orcamento}</a></p>
+                    <p><strong>Sites de Referência:</strong> ${referencias || 'Nenhuma informada'}</p>
                     
                     <div style="background-color: #f0f4f8; padding: 15px; border-left: 4px solid #009EE3; margin-top: 10px;">
                         <strong>Descrição do Cliente:</strong><br>
@@ -161,9 +173,10 @@ app.post('/send-email', async (req, res) => {
                     <p><strong>Profissão:</strong> ${profissao || 'Não informada'}</p>
 
                     <h3 style="color: #444;">🚀 Detalhes do Projeto</h3>
-                    <p><strong>Objetivo/Serviço:</strong> ${servico}</p>
+                    <p><strong>Objetivo/Serviço:</strong> ${finalObjetivo || 'Não informado'}</p>
                     <p><strong>Plano Escolhido:</strong> ${plano || 'Personalizado'}</p>
-                    <p><strong>Preferência de Cores:</strong> ${orcamento}</p>
+                    <p><strong>Preferência de Cores:</strong> ${finalCores || 'Não informado'}</p>
+                    <p><strong>Sites de Referência:</strong> ${referencias || 'Nenhum informado'}</p>
                     
                     <div style="background-color: #f0f4f8; padding: 15px; border-left: 4px solid #009EE3; margin-top: 10px;">
                         <strong>Descrição do Cliente:</strong><br>
