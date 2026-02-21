@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { Resend } = require('resend');
-const { MercadoPagoConfig, Preference } = require('mercadopago');
+const { MercadoPagoConfig, Preference, Payment } = require('mercadopago');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -36,11 +36,18 @@ if (process.env.RESEND_API_KEY) {
 const client = new MercadoPagoConfig({ accessToken: process.env.MP_ACCESS_TOKEN || 'TEST-0000000000000000-000000-00000000000000000000000000000000-000000000' }); // Fallback to avoid crash
 
 // ==========================================
+// ROTA DE SAÚDE (KEEP ALIVE)
+// ==========================================
+app.get('/', (req, res) => {
+    res.status(200).send('Alpha Code Backend: Online 🚀');
+});
+
+// ==========================================
 // ROTA 1: CRIAR PAGAMENTO (Mercado Pago)
 // ==========================================
 app.post('/create-checkout-session', async (req, res) => {
     try {
-        const { planName, price } = req.body;
+        const { planName, price, customerData } = req.body;
 
         if (!planName || !price) {
             return res.status(400).json({ error: 'Dados do plano ausentes.' });
@@ -70,9 +77,16 @@ app.post('/create-checkout-session', async (req, res) => {
                     failure: `${origin}/cancel.html`,
                     pending: `${origin}/success.html`
                 },
-                // IMPORTANTE: 'auto_return' comentado para evitar erro no localhost.
-                // Quando o site for para o domínio real (https), você pode descomentar.
-                // auto_return: 'approved' 
+                notification_url: "https://backend-rp7j.onrender.com/webhook",
+                metadata: {
+                    customer_name: customerData?.nome || 'Não informado',
+                    customer_email: customerData?.email || 'Não informado',
+                    customer_phone: customerData?.whatsapp || 'Não informado',
+                    plan_name: planName,
+                    is_maintenance: customerData?.isMaintenance || false,
+                    details: customerData?.detalhes || ''
+                },
+                auto_return: 'approved'
             }
         });
 
@@ -201,6 +215,76 @@ app.post('/send-email', async (req, res) => {
     } catch (error) {
         console.error('❌ Erro ao enviar email:', error);
         res.status(500).json({ error: 'Erro ao enviar email' });
+    }
+});
+
+// ==========================================
+// ROTA 3: WEBHOOK MERCADO PAGO
+// ==========================================
+app.post('/webhook', async (req, res) => {
+    const { query } = req;
+    console.log('🔔 Webhook recebido:', query);
+
+    const topic = query.topic || query.type;
+
+    try {
+        if (topic === 'payment') {
+            const paymentId = query.id || (req.body.data && req.body.data.id);
+            console.log(`💳 Verificando pagamento ${paymentId}...`);
+
+            const payment = new Payment(client);
+            const data = await payment.get({ id: paymentId });
+
+            console.log(`📊 Status do pagamento: ${data.status}`);
+
+            if (data.status === 'approved') {
+                const { metadata } = data;
+                console.log('🎉 Pagamento APROVADO! Enviando confirmação...');
+
+                // Template de Confirmação de Pagamento
+                const emailHtml = `
+                    <div style="font-family: 'Segoe UI', Arial, sans-serif; color: #333; max-width: 600px; border: 1px solid #25D366; padding: 20px; border-radius: 10px;">
+                        <h2 style="color: #155724; border-bottom: 2px solid #25D366; padding-bottom: 10px;">✅ PAGAMENTO CONFIRMADO!</h2>
+                        
+                        <div style="background-color: #d4edda; padding: 15px; border-radius: 5px; margin-bottom: 20px; border: 1px solid #c3e6cb;">
+                            <p style="margin: 5px 0; color: #155724;"><strong>O cliente finalizou o pagamento com sucesso.</strong></p>
+                        </div>
+
+                        <h3 style="color: #444;">👤 Dados do Cliente</h3>
+                        <p><strong>Nome:</strong> ${metadata.customer_name}</p>
+                        <p><strong>Email:</strong> ${metadata.customer_email}</p>
+                        <p><strong>WhatsApp:</strong> ${metadata.customer_phone}</p>
+
+                        <h3 style="color: #444;">🚀 Detalhes da Compra</h3>
+                        <p><strong>Plano:</strong> ${metadata.plan_name}</p>
+                        <p><strong>Valor Pago:</strong> R$ ${data.transaction_amount}</p>
+                        <p><strong>Método:</strong> ${data.payment_method_id.toUpperCase()}</p>
+                        
+                        <div style="background-color: #f0f4f8; padding: 15px; border-left: 4px solid #25D366; margin-top: 10px;">
+                            <strong>Descrição do Briefing:</strong><br>
+                            ${metadata.details || 'Ver email anterior'}
+                        </div>
+                        
+                        <hr style="margin-top: 30px; border: 0; border-top: 1px solid #eee;">
+                        <p style="font-size: 12px; color: #999; text-align: center;">Alpha Code - Confirmação Automática</p>
+                    </div>
+                `;
+
+                await resend.emails.send({
+                    from: 'Alpha Code <onboarding@resend.dev>',
+                    to: ['alphacodecontato@gmail.com'],
+                    subject: `💰 PAGAMENTO CONFIRMADO: ${metadata.customer_name}`,
+                    html: emailHtml
+                });
+
+                console.log('✅ Email de confirmação enviado!');
+            }
+        }
+
+        res.status(200).send('OK');
+    } catch (error) {
+        console.error('❌ Erro no Webhook:', error);
+        res.status(500).send('Internal Server Error');
     }
 });
 
