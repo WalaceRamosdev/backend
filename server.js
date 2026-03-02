@@ -72,8 +72,16 @@ app.post('/create-checkout-session', async (req, res) => {
             return res.status(400).json({ error: 'Dados do plano ausentes.' });
         }
 
-        // Limpa e formata o preço
-        const numericPrice = parseFloat(price.replace(/[^0-9,.]/g, '').replace(',', '.'));
+        // Limpa e formata o preço (ex: "1.200,00" -> 1200.00)
+        let cleanPrice = price.toString().replace(/[^0-9,.-]/g, '');
+        if (cleanPrice.includes(',') && cleanPrice.includes('.')) {
+            // Se tem ambos, o ponto é separador de milhar
+            cleanPrice = cleanPrice.replace(/\./g, '').replace(',', '.');
+        } else if (cleanPrice.includes(',')) {
+            // Se só tem vírgula, é o decimal
+            cleanPrice = cleanPrice.replace(',', '.');
+        }
+        const numericPrice = parseFloat(cleanPrice);
 
         // Detecta a origem base (protocolo + host)
         let origin = req.headers.origin;
