@@ -526,10 +526,10 @@ app.post('/webhook', async (req, res) => {
                     transaction_amount: 295.00,
                     payment_method_id: 'pix',
                     metadata: {
-                        customer_name: 'Walace Ramos (Teste Alpha)',
-                        customer_email: 'alphacodecontato@gmail.com',
-                        customer_phone: '21999999999',
-                        plan_name: 'Plano Ouro + Manual do Projeto'
+                        customer_name: 'Cliente Teste Alpha',
+                        customer_email: 'teste@alpha.com',
+                        customer_phone: '11999999999',
+                        plan_name: 'Plano Bronze + Domínio'
                     }
                 };
                 console.log('🧪 Modo de Teste Webhook Ativado');
