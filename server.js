@@ -56,9 +56,19 @@ app.post('/create-checkout-session', async (req, res) => {
         // Limpa e formata o preço
         const numericPrice = parseFloat(price.replace(/[^0-9,.]/g, '').replace(',', '.'));
 
-        // Detecta a origem (localhost ou produção) para o link de retorno
-        const origin = req.headers.origin || req.headers.referer || 'http://127.0.0.1:5500';
-        console.log(`💳 Iniciando Checkout. Origem: ${origin}`);
+        // Detecta a origem base (protocolo + host)
+        let origin = req.headers.origin;
+        if (!origin && req.headers.referer) {
+            try {
+                const refUrl = new URL(req.headers.referer);
+                origin = `${refUrl.protocol}//${refUrl.host}`;
+            } catch (e) {
+                origin = 'http://localhost:4321';
+            }
+        }
+        if (!origin) origin = 'http://localhost:4321';
+        if (origin.endsWith('/')) origin = origin.slice(0, -1);
+        console.log(`💳 Gerando Checkout. Base Origin: ${origin}`);
 
         const preference = new Preference(client);
 
@@ -73,9 +83,9 @@ app.post('/create-checkout-session', async (req, res) => {
                     }
                 ],
                 back_urls: {
-                    success: `${origin}/success.html`,
-                    failure: `${origin}/cancel.html`,
-                    pending: `${origin}/success.html`
+                    success: `${origin}/success`,
+                    failure: `${origin}/cancel`,
+                    pending: `${origin}/success`
                 },
                 notification_url: "https://backend-rp7j.onrender.com/webhook",
                 metadata: {
@@ -85,15 +95,18 @@ app.post('/create-checkout-session', async (req, res) => {
                     plan_name: planName,
                     is_maintenance: customerData?.isMaintenance || false,
                     details: customerData?.detalhes || ''
-                },
-                auto_return: 'approved'
+                }
+                // auto_return removido para evitar erro com localhost em tokens de produção
             }
         });
 
         res.json({ url: response.init_point });
     } catch (error) {
-        console.error('❌ Erro Mercado Pago:', error);
-        res.status(500).json({ error: 'Erro ao criar preferência de pagamento' });
+        console.error('❌ Erro Mercado Pago (Full Details):', JSON.stringify(error, null, 2));
+        if (error.api_response) {
+            console.error('🚨 Mercado Pago Response Body:', JSON.stringify(error.api_response.body, null, 2));
+        }
+        res.status(500).json({ error: 'Erro ao criar preferência de pagamento', details: error.message });
     }
 });
 
