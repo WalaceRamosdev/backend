@@ -117,7 +117,7 @@ async function generateContractPdf(metadata, paymentData) {
         page1.drawRectangle({ x: 60, y: height - 385, width: 100, height: 3, color: primaryRed });
 
         page1.drawText('DETALHAMENTO TÉCNICO E TERMOS DE ADESÃO', {
-            x: 60, y: height - 425, size: 10, font: helveticaBold, color: textColor
+            x: 60, y: height - 425, size: 12, font: helveticaBold, color: textColor
         });
 
         // Client info section
@@ -129,24 +129,24 @@ async function generateContractPdf(metadata, paymentData) {
         });
 
         page1.drawText('CONTRATANTE / CLIENTE:', {
-            x: 85, y: 285, size: 9, font: helveticaBold, color: subTextColor
+            x: 85, y: 285, size: 11, font: helveticaBold, color: subTextColor
         });
         page1.drawText((metadata.customer_name || 'CLIENTE').toUpperCase(), {
-            x: 85, y: 255, size: 22, font: helveticaBold, color: textColor
+            x: 85, y: 255, size: 24, font: helveticaBold, color: textColor
         });
         page1.drawText(`WhatsApp: ${metadata.customer_phone || 'Não informado'}`, {
-            x: 85, y: 230, size: 11, font: helvetica, color: subTextColor
+            x: 85, y: 230, size: 13, font: helvetica, color: subTextColor
         });
         page1.drawText(`Email: ${metadata.customer_email || 'Não informado'}`, {
-            x: 85, y: 212, size: 11, font: helvetica, color: subTextColor
+            x: 85, y: 212, size: 13, font: helvetica, color: subTextColor
         });
 
         const today = new Date().toLocaleDateString('pt-BR');
         page1.drawText(`EMISSÃO: ${today}`, {
-            x: 60, y: 80, size: 9, font: helvetica, color: subTextColor
+            x: 60, y: 80, size: 11, font: helvetica, color: subTextColor
         });
         page1.drawText('ALPHA CODE SOLUTIONS | © 2026 ALPHA CODE CORP', {
-            x: 60, y: 65, size: 8, font: helveticaBold, color: subTextColor
+            x: 60, y: 65, size: 10, font: helveticaBold, color: subTextColor
         });
 
         // --- PAGE 2: ACQUISITION ---
@@ -155,14 +155,14 @@ async function generateContractPdf(metadata, paymentData) {
         page2.drawRectangle({ x: 0, y: 0, width: 20, height: height, color: accentRed });
 
         page2.drawText('DETALHES DA AQUISIÇÃO', {
-            x: 60, y: height - 85, size: 22, font: helveticaBold, color: textColor
+            x: 60, y: height - 85, size: 24, font: helveticaBold, color: textColor
         });
 
         let yPos = height - 160;
         const addRow = (label, value) => {
             page2.drawRectangle({ x: 60, y: yPos - 15, width: width - 120, height: 50, color: surfaceColor });
-            page2.drawText(label, { x: 80, y: yPos + 10, size: 9, font: helveticaBold, color: primaryRed });
-            page2.drawText(value.toString(), { x: 80, y: yPos - 5, size: 13, font: helvetica, color: textColor });
+            page2.drawText(label, { x: 80, y: yPos + 10, size: 11, font: helveticaBold, color: primaryRed });
+            page2.drawText(value.toString(), { x: 80, y: yPos - 5, size: 15, font: helvetica, color: textColor });
             yPos -= 70;
         };
 
@@ -173,7 +173,7 @@ async function generateContractPdf(metadata, paymentData) {
 
         yPos -= 20;
         page2.drawText('GARANTIAS E ENTREGÁVEIS INCLUSOS:', {
-            x: 60, y: yPos, size: 14, font: helveticaBold, color: textColor
+            x: 60, y: yPos, size: 16, font: helveticaBold, color: textColor
         });
         yPos -= 40;
 
@@ -189,23 +189,23 @@ async function generateContractPdf(metadata, paymentData) {
 
         inclusions.forEach(item => {
             page2.drawCircle({ x: 70, y: yPos + 4, size: 3, color: primaryRed });
-            page2.drawText(item, { x: 85, y: yPos, size: 11, font: helvetica, color: textColor });
-            yPos -= 25;
+            page2.drawText(item, { x: 85, y: yPos, size: 13, font: helvetica, color: textColor });
+            yPos -= 30;
         });
 
         yPos -= 40;
         page2.drawRectangle({ x: 60, y: yPos, width: width - 120, height: 1, color: borderColor });
         yPos -= 40;
         page2.drawText('SOBRE O MANUAL DO PROJETO:', {
-            x: 60, y: yPos, size: 11, font: helveticaBold, color: primaryRed
+            x: 60, y: yPos, size: 13, font: helveticaBold, color: primaryRed
         });
         yPos -= 25;
         page2.drawText('Todos os nossos planos agora incluem uma Central de Documentação Digital.', {
-            x: 60, y: yPos, size: 10, font: helvetica, color: subTextColor
+            x: 60, y: yPos, size: 12, font: helvetica, color: subTextColor
         });
         yPos -= 18;
         page2.drawText('Você receberá o link de acesso assim que sua estrutura estiver publicada.', {
-            x: 60, y: yPos, size: 10, font: helvetica, color: subTextColor
+            x: 60, y: yPos, size: 12, font: helvetica, color: subTextColor
         });
 
         // --- PAGE 3: TERMS & NEXT STEPS ---
@@ -214,7 +214,7 @@ async function generateContractPdf(metadata, paymentData) {
         page3.drawRectangle({ x: 0, y: 0, width: 20, height, color: primaryRed });
 
         page3.drawText('PRÓXIMOS PASSOS E TERMOS', {
-            x: 60, y: height - 85, size: 22, font: helveticaBold, color: textColor
+            x: 60, y: height - 85, size: 24, font: helveticaBold, color: textColor
         });
 
         const steps = [
@@ -226,13 +226,13 @@ async function generateContractPdf(metadata, paymentData) {
 
         yPos = height - 170;
         steps.forEach(s => {
-            page3.drawText(s.t, { x: 60, y: yPos, size: 14, font: helveticaBold, color: primaryRed });
-            yPos -= 22;
-            page3.drawText(s.d, { x: 60, y: yPos, size: 11, font: helvetica, color: textColor });
-            yPos -= 60;
+            page3.drawText(s.t, { x: 60, y: yPos, size: 16, font: helveticaBold, color: primaryRed });
+            yPos -= 25;
+            page3.drawText(s.d, { x: 60, y: yPos, size: 13, font: helvetica, color: textColor });
+            yPos -= 65;
         });
 
-        yPos -= 20;
+        yPos -= 10;
         page3.drawRectangle({
             x: 60, y: yPos - 120, width: width - 120, height: 150,
             color: surfaceColor,
@@ -241,7 +241,7 @@ async function generateContractPdf(metadata, paymentData) {
         });
 
         page3.drawText('TERMOS DE COMPROMISSO ALPHA:', {
-            x: 85, y: yPos + 10, size: 10, font: helveticaBold, color: textColor
+            x: 85, y: yPos + 10, size: 12, font: helveticaBold, color: textColor
         });
 
         const terms = [
@@ -253,13 +253,13 @@ async function generateContractPdf(metadata, paymentData) {
 
         let termY = yPos - 25;
         terms.forEach(term => {
-            page3.drawText('•', { x: 85, y: termY, size: 12, font: helveticaBold, color: primaryRed });
-            page3.drawText(term, { x: 100, y: termY, size: 9, font: helvetica, color: subTextColor });
-            termY -= 20;
+            page3.drawCircle({ x: 90, y: termY + 3, size: 2, color: primaryRed });
+            page3.drawText(term, { x: 105, y: termY, size: 11, font: helvetica, color: subTextColor });
+            termY -= 22;
         });
 
         page3.drawText('Este documento serve como comprovante oficial de contratação.', {
-            x: 60, y: 100, size: 8, font: helvetica, color: subTextColor
+            x: 60, y: 100, size: 10, font: helvetica, color: subTextColor
         });
 
         const pdfBytes = await pdfDoc.save();
