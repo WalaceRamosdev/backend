@@ -18,7 +18,10 @@ const transporter = nodemailer.createTransport({
     auth: {
         user: process.env.SMTP_USER || process.env.EMAIL_USER,
         pass: process.env.SMTP_PASS || process.env.EMAIL_PASS
-    }
+    },
+    connectionTimeout: 5000, // 5 segundos para conectar
+    greetingTimeout: 5000,   // 5 segundos para o "hello" do SMTP
+    socketTimeout: 10000     // 10 segundos total de socket
 });
 
 // Inicializa Resend (Email - Fallback se necessário)
@@ -257,27 +260,34 @@ app.post('/send-email', async (req, res) => {
             console.log('✅ Email enviado via SMTP:', info.messageId);
             return res.status(200).json({ message: 'Email enviado com sucesso (SMTP)!' });
         } catch (smtpError) {
-            console.warn('⚠️ Falha no SMTP, tentando fallback via Resend...', smtpError.message);
-
+            console.warn('⚠️ Falha no SMTP. Tentando fallback via Resend...', smtpError.message);
             if (resend) {
-                const { data: resendData, error: resendError } = await resend.emails.send({
-                    from: 'Alpha Code <onboarding@resend.dev>', // Ou seu domínio verificado
-                    to: (process.env.SMTP_USER || process.env.EMAIL_USER),
-                    reply_to: email,
-                    subject: `🔥 Novo Pedido: ${nome} - ${plano || servico} (via Resend)`,
-                    html: emailHtml
-                });
-
-                if (resendError) throw resendError;
-                console.log('✅ Email enviado via Resend Fallback:', resendData.id);
-                return res.status(200).json({ message: 'Email enviado via Fallback!' });
-            } else {
-                throw smtpError; // Se não tiver Resend, repassa o erro original
+                try {
+                    const { data: resendData, error: resendError } = await resend.emails.send({
+                        from: 'Alpha Code <onboarding@resend.dev>',
+                        to: (process.env.SMTP_USER || process.env.EMAIL_USER),
+                        reply_to: email,
+                        subject: `� [FALLBACK] Novo Pedido: ${nome} - ${plano || servico}`,
+                        html: emailHtml
+                    });
+                    if (resendError) throw resendError;
+                    console.log('✅ Email enviado via Resend Fallback:', resendData.id);
+                    return res.status(200).json({ message: 'Email enviado via Fallback!' });
+                } catch (resErr) {
+                    throw new Error(`Ambos falharam: ${smtpError.message} / ${resErr.message}`);
+                }
             }
+            throw smtpError;
         }
     } catch (error) {
-        console.error('❌ Erro fatal ao enviar email:', error);
-        res.status(500).json({ error: 'Erro ao processar pedido. Tente o WhatsApp.' });
+        console.error('📊 [BACKUP LOG] Lead capturado mas sem notificação:');
+        console.error(`Cliente: ${nome} | WhatsApp: ${whatsapp} | Plano: ${plano}`);
+        console.error('❌ Erro fatal ao enviar email:', error.message);
+
+        res.status(200).json({
+            message: 'Lead capturado, prossiga para pagamento.',
+            warning: error.message
+        });
     }
 });
 
