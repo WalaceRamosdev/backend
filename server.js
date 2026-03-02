@@ -1,13 +1,27 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const nodemailer = require('nodemailer');
 const { Resend } = require('resend');
 const { MercadoPagoConfig, Preference, Payment } = require('mercadopago');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Inicializa Resend (Email)
+console.log('--- Iniciando Servidor Alpha Code (SMTP Mode) ---');
+
+// Configuração do Nodemailer (SMTP)
+const transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST || 'smtp.gmail.com',
+    port: parseInt(process.env.SMTP_PORT || '587'),
+    secure: process.env.SMTP_SECURE === 'true', // true para 465, false para outras portas
+    auth: {
+        user: process.env.SMTP_USER || process.env.EMAIL_USER,
+        pass: process.env.SMTP_PASS || process.env.EMAIL_PASS
+    }
+});
+
+// Inicializa Resend (Email - Fallback se necessário)
 let resend;
 if (process.env.RESEND_API_KEY) {
     resend = new Resend(process.env.RESEND_API_KEY);
@@ -25,10 +39,15 @@ if (process.env.MP_ACCESS_TOKEN) {
     console.warn('❌ AVISO: MP_ACCESS_TOKEN não configurada!');
 }
 
-if (process.env.RESEND_API_KEY) {
-    console.log('✅ RESEND_API_KEY: Encontrada');
+if (process.env.SMTP_USER || process.env.EMAIL_USER) {
+    console.log('✅ SMTP/EMAIL: Configurado para ' + (process.env.SMTP_USER || process.env.EMAIL_USER));
+    // Testar conexão
+    transporter.verify((error) => {
+        if (error) console.warn('❌ Erro na configuração do E-mail:', error.message);
+        else console.log('✅ Servidor de E-mail pronto para enviar');
+    });
 } else {
-    console.warn('❌ AVISO: RESEND_API_KEY não configurada! O envio de emails falhará.');
+    console.warn('❌ AVISO: Configurações de E-mail não encontradas!');
 }
 // --------------------------------------------------
 
@@ -216,14 +235,17 @@ app.post('/send-email', async (req, res) => {
             `;
         }
 
-        const data = await resend.emails.send({
-            from: 'Alpha Code <onboarding@resend.dev>', // Use seu domínio verificado se tiver
-            to: ['alphacodecontato@gmail.com'], // ONDE VOCÊ RECEBE OS PEDIDOS
+        const mailOptions = {
+            from: `"Alpha Code" <${process.env.SMTP_USER || process.env.EMAIL_USER}>`,
+            to: (process.env.SMTP_USER || process.env.EMAIL_USER), // Envia para si mesmo por padrão
+            replyTo: email, // Permite responder diretamente ao cliente
             subject: `🔥 Novo Pedido: ${nome} - ${plano || servico}`,
             html: emailHtml
-        });
+        };
 
-        console.log('✅ Email enviado com sucesso:', data);
+        const info = await transporter.sendMail(mailOptions);
+
+        console.log('✅ Email enviado com sucesso:', info.messageId);
         res.status(200).json({ message: 'Email enviado com sucesso!' });
     } catch (error) {
         console.error('❌ Erro ao enviar email:', error);
@@ -245,8 +267,25 @@ app.post('/webhook', async (req, res) => {
             const paymentId = query.id || (req.body.data && req.body.data.id);
             console.log(`💳 Verificando pagamento ${paymentId}...`);
 
-            const payment = new Payment(client);
-            const data = await payment.get({ id: paymentId });
+            let data;
+            if (paymentId === 'test_payment_123') {
+                // Mock para teste manual
+                data = {
+                    status: 'approved',
+                    transaction_amount: 295.00,
+                    payment_method_id: 'pix',
+                    metadata: {
+                        customer_name: 'Cliente Teste Alpha',
+                        customer_email: 'teste@alpha.com',
+                        customer_phone: '11999999999',
+                        plan_name: 'Plano Bronze + Domínio'
+                    }
+                };
+                console.log('🧪 Modo de Teste Webhook Ativado');
+            } else {
+                const payment = new Payment(client);
+                data = await payment.get({ id: paymentId });
+            }
 
             console.log(`📊 Status do pagamento: ${data.status}`);
 
@@ -283,12 +322,14 @@ app.post('/webhook', async (req, res) => {
                     </div>
                 `;
 
-                await resend.emails.send({
-                    from: 'Alpha Code <onboarding@resend.dev>',
-                    to: ['alphacodecontato@gmail.com'],
+                const confirmMailOptions = {
+                    from: `"Alpha Code" <${process.env.SMTP_USER || process.env.EMAIL_USER}>`,
+                    to: (process.env.SMTP_USER || process.env.EMAIL_USER),
                     subject: `💰 PAGAMENTO CONFIRMADO: ${metadata.customer_name}`,
                     html: emailHtml
-                });
+                };
+
+                await transporter.sendMail(confirmMailOptions);
 
                 console.log('✅ Email de confirmação enviado!');
             }
