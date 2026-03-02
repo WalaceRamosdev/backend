@@ -237,19 +237,39 @@ app.post('/send-email', async (req, res) => {
 
         const mailOptions = {
             from: `"Alpha Code" <${process.env.SMTP_USER || process.env.EMAIL_USER}>`,
-            to: (process.env.SMTP_USER || process.env.EMAIL_USER), // Envia para si mesmo por padrão
-            replyTo: email, // Permite responder diretamente ao cliente
+            to: (process.env.SMTP_USER || process.env.EMAIL_USER),
+            replyTo: email,
             subject: `🔥 Novo Pedido: ${nome} - ${plano || servico}`,
             html: emailHtml
         };
 
-        const info = await transporter.sendMail(mailOptions);
+        try {
+            // Tenta via SMTP (Gmail)
+            const info = await transporter.sendMail(mailOptions);
+            console.log('✅ Email enviado via SMTP:', info.messageId);
+            return res.status(200).json({ message: 'Email enviado com sucesso (SMTP)!' });
+        } catch (smtpError) {
+            console.warn('⚠️ Falha no SMTP, tentando fallback via Resend...', smtpError.message);
 
-        console.log('✅ Email enviado com sucesso:', info.messageId);
-        res.status(200).json({ message: 'Email enviado com sucesso!' });
+            if (resend) {
+                const { data: resendData, error: resendError } = await resend.emails.send({
+                    from: 'Alpha Code <onboarding@resend.dev>', // Ou seu domínio verificado
+                    to: (process.env.SMTP_USER || process.env.EMAIL_USER),
+                    reply_to: email,
+                    subject: `🔥 Novo Pedido: ${nome} - ${plano || servico} (via Resend)`,
+                    html: emailHtml
+                });
+
+                if (resendError) throw resendError;
+                console.log('✅ Email enviado via Resend Fallback:', resendData.id);
+                return res.status(200).json({ message: 'Email enviado via Fallback!' });
+            } else {
+                throw smtpError; // Se não tiver Resend, repassa o erro original
+            }
+        }
     } catch (error) {
-        console.error('❌ Erro ao enviar email:', error);
-        res.status(500).json({ error: 'Erro ao enviar email' });
+        console.error('❌ Erro fatal ao enviar email:', error);
+        res.status(500).json({ error: 'Erro ao processar pedido. Tente o WhatsApp.' });
     }
 });
 
