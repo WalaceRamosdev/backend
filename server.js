@@ -153,9 +153,9 @@ app.post('/send-email', async (req, res) => {
     const finalObjetivo = objetivo || servico;
     const finalCores = cores || orcamento;
 
-    if (!resend) {
-        console.error('❌ ERRO: Tentativa de envio de email sem RESEND_API_KEY configurada.');
-        return res.status(500).json({ error: 'Servidor de email não configurado (API Key ausente).' });
+    if (!transporter) {
+        console.error('❌ ERRO: Servidor de email (Nodemailer/SMTP) não inicializado.');
+        return res.status(500).json({ error: 'Servidor de email não configurado.' });
     }
 
     try {
