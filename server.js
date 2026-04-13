@@ -145,7 +145,7 @@ async function generateContractPdf(metadata, paymentData) {
         page1.drawText(`EMISSÃO: ${today}`, {
             x: 60, y: 80, size: 11, font: helvetica, color: subTextColor
         });
-        page1.drawText('ALPHA CODE SOLUTIONS | © 2026 ALPHA CODE CORP', {
+        page1.drawText('ALPHA CODE SOLUTIONS | © 2025 ALPHA CODE CORP', {
             x: 60, y: 65, size: 10, font: helveticaBold, color: subTextColor
         });
 
